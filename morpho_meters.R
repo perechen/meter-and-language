@@ -271,10 +271,11 @@ draw_scatter <- function(df, xpos, ypos, plt,filter=T) {
     mutate(label=str_remove(label0,"_.*")) %>% 
     {if (filter) filter(., label %in% c("iamb", "trochee")) else .} %>% 
     ggplot(aes(x,y,color=label)) + 
-    geom_point(size=3) + 
+    geom_point(size=2,shape = 1,stroke = 1) + 
     theme_minimal() + 
     scale_color_manual(values=plt) + 
-    theme(axis.title = element_text(size=14)) + labs(x=colnames(df)[xpos], y=colnames(df)[ypos])
+    theme(axis.title = element_text(size=10), legend.title=element_blank(),plot.title = element_text(size=14),
+          plot.background = element_rect(fill="white",color=NA)) + labs(x=colnames(df)[xpos], y=colnames(df)[ypos])
   
 }
 
@@ -337,12 +338,12 @@ par(op)
 ############
 
 
-df <- read_tsv("data/prepared/de_lines.tsv") %>% 
+df <- read_tsv("data/prepared_foot/cs_lines.tsv") %>% 
   mutate(syl= str_remove_all(pos_syl, "[A-Z]"))
 
 
 set.seed(28)
-s <- sample_lines(df,n_lines = 300,n_samples = 20,label = NA)
+s <- sample_lines(df,n_lines = 200,n_samples = 20,label = "foot")
 
 d <- vectorizer(s,mff = NA,ngram = 1,ftr = "syl",scale=T)
 
@@ -487,12 +488,9 @@ resdf<-read_csv("res_foot_rf.csv",col_names = c("lang","feature","sample_size","
 library(paletteer)
 
 xlines <- tibble(lang=c("cs", "de", "ru"),
-            baseline=c(0.0625, 0.125, 0.06))
-
-xlines <- tibble(lang=c("cs", "de", "ru"),
                  baseline=c(0.25, 0.33, 0.20))
 
-resdf %>% mutate(ngram=as.character(ngram)) %>% 
+p1 <- resdf %>% mutate(ngram=as.character(ngram)) %>% 
   group_by(lang,feature,sample_size,ngram) %>%
   summarize(lo=quantile(acc,0.025),
             hi=quantile(acc,0.975),
@@ -501,15 +499,42 @@ resdf %>% mutate(ngram=as.character(ngram)) %>%
   geom_line(aes(linetype=ngram,color=feature),linewidth=0.8) + 
 #  geom_ribbon(aes(ymin=lo,ymax=hi,group=interaction(feature,ngram)),fill="grey", alpha=0.3) +
   facet_wrap(~lang) + 
-  labs(x="Sample size (lines)",y="Accuracy",title = "Recognizing foot type (3-5 classes)") + 
+  labs(x=NULL,y="Accuracy",title = "a. Classifying by foot type (3-5 classes)") + 
   scale_color_paletteer_d("basetheme::clean") + 
   theme_minimal() + 
   geom_hline(data=xlines,aes(yintercept=baseline),linetype=3) + 
   theme(strip.text = element_text(size=14),
-        plot.background = element_rect(fill="white")) +
-  scale_y_continuous(breaks = seq(0,1,by=0.1)) 
+        plot.background = element_rect(fill="white",color=NA),
+        plot.title = element_text(size=10)) +
+  scale_y_continuous(breaks = seq(0,1,by=0.1)) + guides(linetype="none", color="none")
 
-ggsave("classify_foot_rf.png",height=4,width=8)
+resdf<-read_csv("res_form_rf.csv",col_names = c("lang","feature","sample_size","ngram","acc")) 
+
+
+xlines <- tibble(lang=c("cs", "de", "ru"),
+                 baseline=c(0.0625, 0.125, 0.06))
+
+
+p2 <- resdf %>% mutate(ngram=as.character(ngram)) %>% 
+  group_by(lang,feature,sample_size,ngram) %>%
+  summarize(lo=quantile(acc,0.025),
+            hi=quantile(acc,0.975),
+            acc=mean(acc)) %>% 
+  ggplot(aes(sample_size, acc)) + 
+  geom_line(aes(linetype=ngram,color=feature),linewidth=0.8) + 
+  #  geom_ribbon(aes(ymin=lo,ymax=hi,group=interaction(feature,ngram)),fill="grey", alpha=0.3) +
+  facet_wrap(~lang) + 
+  labs(x="Sample size (lines)",y="Accuracy",title = "b. Classifying by metrical form (15-17 classes)") + 
+  scale_color_paletteer_d("basetheme::clean") + 
+  theme_minimal() + 
+  geom_hline(data=xlines,aes(yintercept=baseline),linetype=3) + 
+  theme(strip.text = element_blank(),
+        plot.background = element_rect(fill="white",color=NA,),plot.title = element_text(size=10),legend.position = "bottom") +
+  scale_y_continuous(breaks = seq(0,1,by=0.1))
+
+p1/p2
+
+ggsave("classify_foot_rf.png",height=6,width=8)
 
 #########################
 ### by feature plots  ### 
