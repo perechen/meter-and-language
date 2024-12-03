@@ -171,15 +171,6 @@ for(c in 1:length(corp)) {
 
 
 
-## rewrite the sampling! now it does 5 samples per metrical variation! so ~ 20,25 samples per meter.
-## check German weird numbers
-## fix cyrillic non-ASCII regex for n-grams
-
-
-# df <- read_tsv(corp[3]) %>% 
-#   mutate(syl= str_remove_all(pos_syl, "[A-Z]"))
-# s <- sample_lines(df,n_lines = 100,n_samples = 5)
-# d <- vectorizer(s,mff = NA,ngram = 2,ftr = "syl",scale=T)
 
 #########################
 ### by feature plots  ### 
