@@ -1,0 +1,17 @@
+"amphibrach_3" "amphibrach_4" "dactyl_2" "dactyl_3" "dactyl_4" "iamb_3" "iamb_4" "iamb_5" "iamb_6" "iamb_7" "trochee_3" "trochee_4" "trochee_5" "trochee_6" "trochee_7" "trochee_8"
+"amphibrach_3" 0 0 0 1 2 1 1 1 0 1 0 0 3 1 0 0
+"amphibrach_4" 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 2
+"dactyl_2" 0 0 2 3 0 0 1 1 3 3 3 0 1 0 0 2
+"dactyl_3" 0 2 2 3 1 0 0 0 0 0 1 1 0 2 0 0
+"dactyl_4" 3 0 1 1 0 0 0 0 1 2 0 0 0 0 0 0
+"iamb_3" 1 2 1 0 0 0 1 1 0 0 0 1 0 0 1 0
+"iamb_4" 0 0 1 0 0 2 0 1 0 0 3 1 0 1 1 1
+"iamb_5" 1 0 0 1 1 0 0 2 2 0 0 2 0 0 0 1
+"iamb_6" 0 0 2 0 0 0 0 1 0 0 0 1 0 1 1 2
+"iamb_7" 3 2 0 0 2 1 1 2 2 2 0 0 0 1 0 1
+"trochee_3" 0 0 0 1 0 1 2 0 0 0 1 1 1 1 0 0
+"trochee_4" 0 2 0 0 0 2 1 0 0 0 1 0 0 0 1 0
+"trochee_5" 0 0 0 0 1 1 0 0 0 0 0 0 0 1 0 0
+"trochee_6" 0 0 0 0 1 0 2 0 0 2 0 1 2 0 1 0
+"trochee_7" 0 1 1 0 2 1 0 0 0 0 1 1 1 2 4 0
+"trochee_8" 2 1 0 0 0 1 1 1 1 0 0 1 2 0 1 1

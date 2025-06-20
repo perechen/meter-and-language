@@ -38,6 +38,58 @@ sample_lines <- function(x,n_lines=1000,n_samples=1,label=NA) {
   return(sample_out)
 }
 
+sample_range <- function(x,n_lines=1000, n_samples_max=10, label=NA) {
+  
+  ## groups 
+  if(!is.na(label)) {
+    x <- x %>% mutate(label=str_remove(label, "_..?$"))
+  }
+  
+  
+  ### this to stratify further sampling by authors (i.e. take uniform distribution, but only for super rich) 
+  ### those who wrote many lines in one meter
+  major_poets <- x %>% count(author, label) %>% filter(n>5000) %>% mutate(gr_id=paste(author, label,sep="_"))
+  
+  ### two pools
+  p1 <- x %>% mutate(gr_id=paste(author, label,sep="_")) %>% filter(gr_id %in% major_poets$gr_id) %>% select(-gr_id)
+  p2 <- x %>% anti_join(p1 %>% select(line_id),by="line_id")
+  
+  ### if data has major poets
+  if(nrow(major_poets) != 0) {
+    p1 <- p1 %>% group_by(label, author) %>% sample_n(5000) %>% ungroup()
+  }
+  
+  pool <- bind_rows(p1,p2)
+  ### end of stratification
+  
+  
+  forms <- x %>% count(label,sort=T) %>% mutate(s_pool = floor(n/n_lines),
+                                                 is_minor= ifelse(s_pool < n_samples_max, T, F))
+  ## quick way to make independent samples without replacement: take n_lines*n_samples worth of lines, then shuffle, and divide to n_sample buckets
+  sample_out <- pool %>% 
+    filter(!label %in% forms$label[forms$is_minor]) %>% 
+    group_by(label) %>% 
+    sample_n(n_lines*n_samples_max) %>% # take all that is required
+    slice_sample(prop=1) %>% # shuffle within group
+    mutate(sample_no=ceiling(row_number()/n_lines)) %>% # annotate buckets 
+    ungroup() 
+  
+  s1 <- pool %>% 
+    filter(label %in% forms$label[forms$is_minor]) %>%
+    group_by(label) %>% left_join(forms %>% select(label, s_pool)) %>% group_split()
+  
+  sample_minor<-lapply(s1, function(x) {
+    x %>% sample_n(n_lines*unique(s_pool)) %>% # take all that is required
+      slice_sample(prop=1) %>% # shuffle within group
+      mutate(sample_no=ceiling(row_number()/n_lines))
+  })
+  
+  sample_out <- bind_rows(sample_minor, sample_out)
+  
+  
+  return(sample_out)
+}
+
 ##################
 ### vectorizer ###
 ##################
@@ -125,6 +177,15 @@ vectorizer <- function(x,mff=50,ftr="token",ngram=1,scale=T) {
   }
   
   return(dtm_s)
+}
+
+## LOO for random Forest
+loo_cv <- function(x,df) {
+  
+  rf <- randomForest(meter1~., data=df[-x,],nodesize=1,ntree=500)
+  r <- predict(rf,train[x,])
+  return(as.character(r))
+  
 }
 
 ################

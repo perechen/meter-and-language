@@ -8,6 +8,7 @@ library(doParallel)
 library(philentropy)
 library(randomForest)
 library(stylo)
+library(caret)
 
 # plots
 library(ggtree)
@@ -24,7 +25,7 @@ source("00_scripts.R")
 min_lines = 5000 ## filter meters by size # 1000k x 5 samples
 
 fs <- c("data/dump/cs/", "data/dump/de", "data/dump/ru/")
-file_names <- c("data/prepared/cs_lines.tsv", "data/prepared/de_lines.tsv", "data/prepared/ru_lines.tsv")
+file_names <- c("data/prepared_foot/cs_lines.tsv", "data/prepared_foot/de_lines.tsv", "data/prepared_foot/ru_lines.tsv")
 
 ## iterate over folders
 for(i in 1:3) {
@@ -46,17 +47,24 @@ cs_df <- cs %>% bind_rows(.id = "meter") %>% left_join(labels)
 
 ## filter meters
 selection <- cs_df %>%
-  count(label,line_id) %>%
-  count(label,sort=T) %>% 
+  count(label_foot,line_id) %>%
+  count(label_foot,sort=T) %>% 
   filter(n > min_lines)
 
 ## apply selection to the larger table
-cs_df <- cs_df %>% filter(label %in% selection$label)
+cs_df <- cs_df %>% filter(label_foot %in% selection$label_foot)
+
+### German POS simplification ### 
+
+if(i == 2) {
+de_pos <- read_csv("data/german_simplification.csv")
+cs_df <- cs_df %>% left_join(de_pos,by="pos") %>% select(-pos) %>% rename(pos=pos_target)
+}
 
 ## cast lines: one line = one row
 lines_df <- cs_df %>%
   mutate(pos_syl=paste0(pos, nchar(pattern))) %>%
-  group_by(meter, label, label_foot, poem_id, line_id,author) %>%
+  group_by(meter, label, label_foot, poem_id, line_id,author,born,died) %>%
   summarize(token=paste(token, collapse=" "),
             pattern=paste(pattern, collapse=" "),
             pos=paste(pos,collapse=" "),
@@ -64,6 +72,8 @@ lines_df <- cs_df %>%
 
 write_tsv(lines_df,file = file_names[i])
 }
+
+
 
 
 #####################################
@@ -89,8 +99,11 @@ packages_used <- c("tidyverse", "doParallel", "tidytext", "randomForest", "strin
 
 
 corp <- list.files("data/prepared/",full.names = T)
-langs <- c("cs","de","ru")
-#langs <- c("de","ru")
+analysis_t <- "form"
+langs <- c("cs", "de","ru")
+
+#cs,pos_syl,1000,2,1
+
 
 n_lines = c(25,50,100, 200, 300, 500, 750, 1000)
 ngram <- c(1,2)
@@ -109,7 +122,7 @@ for(c in 1:length(corp)) {
   
   for(n in n_lines) {
     
-    s <- sample_lines(df,n_lines = n,n_samples = 5,label = NA)
+    s <- sample_range(df,n_lines = n,n_samples_max = 10,label = NA)
     
     for(f in features) {
       
@@ -118,49 +131,57 @@ for(c in 1:length(corp)) {
         mff=NA
         
         if(f=="token") {
-          mff=200
+          mff=100
         }
         
-        if(f=="token" & ng==2 & n==25) {
-          mff=NA
-        }
+        # if(f=="token" & ng==2 & n==25) {
+        #   mff=NA
+        # }
         
         # if(langs[c]=="ru" & f=="token" & ng== 2) {
         #   next
         # }
         
-        if(f=="pos" & ng==2 & n >= 50) {
-          mff=100
-        }
+        # if(f=="pos" & ng==2 & n >= 50) {
+        #   mff=100
+        # }
         
         if(f=="pos_syl" & ng==2 & n >= 50) {
           mff=200
         }
+        
+        write_lines(paste0(langs[c], "",
+                           f, "",
+                           n, " ",
+                           ng, " ",
+                           analysis_t),file="log.txt",append = T)
 
         d <- vectorizer(s,mff = mff,ngram = ng,ftr = f,scale=T)
         
         ## RF
         colnames(d) <- paste0("f_",colnames(d) %>% str_replace_all(" ", "_"))
-        rownames(d) <- rownames(d) %>% str_remove("_.$")
+        rownames(d) <- rownames(d) %>% str_remove("_..?$")
         
         train <- d %>% as.data.frame() 
         
-        train$meter1 <- rownames(d)
-        train$meter1 <- as.factor(train$meter)
+        train$meter1 <- as.factor(rownames(d))
+
+        ## leave one out cross validation
+        loo_res <- lapply(1:nrow(train), loo_cv, df=train) %>% unlist() %>% 
+          factor(levels=levels(train$meter1))
         
-        rf <- randomForest(meter1~., data=train,ntree=500)
-        cm <- confusionMatrix(rf$predicted, train$meter1)
+        cm <- confusionMatrix(loo_res, train$meter1)
         acc <- cm$overall[1]
-        
-        ## stylo
-        
-        #set=d
-        #rownames(set) <- str_remove(rownames(d),"_.$") %>% str_remove("_")
-        
-        # <- crossv(training.set = set, cv.mode = "leaveoneout", classification.method = "delta")
-        #acc <- sum(results$y)/length(results$y)
-        
-        write_lines(file = "res_form_rf.csv", x=paste0(langs[c],",",f,",",n,",",ng, ",",acc),append = T)
+      
+        cm$table %>% write.table(file=paste0("results/conf_matrices/", 
+                                             langs[c], "_",
+                                             f, "_",
+                                             n, "_",
+                                             ng, "_",
+                                             analysis_t, "_",
+                                             i))
+  
+        write_lines(file = paste0("res_",analysis_t,"_loo.csv"), x=paste0(langs[c],",",f,",",n,",",ng, ",",acc),append = T)
         
     
       }
